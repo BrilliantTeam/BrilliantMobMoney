@@ -1,0 +1,25 @@
+name: BrilliantMobMoney
+version: '1.0'
+main: Rice.Chen.BrilliantMobMoney.BrilliantMobMoney
+api-version: '1.20'
+depend: [Vault]
+description: A plugin that gives players money for killing mobs
+author: RiceChen
+folia-supported: true
+
+commands:
+  bmm:
+    description: BrilliantMobMoney main command
+    usage: /bmm [reload|metrics]
+    permission: brilliantmobmoney.use
+
+permissions:
+  brilliantmobmoney.use:
+    description: 允許查看指令幫助
+    default: true
+  brilliantmobmoney.reload:
+    description: 允許重新載入插件配置
+    default: op
+  brilliantmobmoney.metrics:
+    description: 允許使用效能監控指令
+    default: op

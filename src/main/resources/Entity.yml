@@ -1,0 +1,167 @@
+EntityList:
+    ALLAY:
+        DisplayName: "悅靈"
+    ARMADILLO:
+        DisplayName: "犰狳"
+    AXOLOTL:
+        DisplayName : "六角恐龍"
+    BAT:
+        DisplayName: "蝙蝠"
+    BEE:
+        DisplayName: "蜜蜂"
+    BLAZE:
+        DisplayName: "烈焰神"
+    CAT:
+        DisplayName: "貓"
+    CAMEL:
+        DisplayName: "駱駝"
+    CAVE_SPIDER:
+        DisplayName: "洞穴蜘蛛"
+    MINECART_CHEST:
+        DisplayName: "箱子礦車"
+    CHICKEN:
+        DisplayName: "雞"
+    COD:
+        DisplayName: "鱈魚"
+    COW:
+        DisplayName: "牛"
+    CREEPER:
+        DisplayName: "苦力怕"
+    DOLPHIN:
+        DisplayName: "海豚"
+    DONKEY:
+        DisplayName: "驢子"
+    DROWNED:
+        DisplayName: "沉屍"
+    ELDER_GUARDIAN:
+        DisplayName: "遠古深海守衛"
+    ENDER_CRYSTAL:
+        DisplayName: "終界水晶"
+    ENDERMAN:
+        DisplayName: "終界使者"
+    ENDERMITE:
+        DisplayName: "終介?"
+    EVOKER:
+        DisplayName: "喚魔者"
+    FOX:
+        DisplayName: "狐狸"
+    FROG:
+        DisplayName: "青蛙"
+    MINECART_FURNACE:
+        DisplayName: "熔爐礦車"
+    GHAST:
+        DisplayName: "地獄幽靈"
+    GIANT:
+        DisplayName: "巨人"
+    GLOW_SQUID:
+        DisplayName: "螢光魷魚"
+    GOAT:
+        DisplayName: "山羊"
+    GUARDIAN:
+        DisplayName: "深海守衛"
+    HOGLIN:
+        DisplayName: "豬布獸"
+    MINECART_HOPPER:
+        DisplayName: "漏斗礦車"
+    HORSE:
+        DisplayName: "馬"
+    HUSK:
+        DisplayName: "屍殼"
+    IRON_GOLEM:
+        DisplayName: "鐵巨人"
+    LLAMA:
+        DisplayName: "駱馬"
+    MAGMA_CUBE:
+        DisplayName: "熔岩立方怪"
+    MINECART:
+        DisplayName: "礦車"
+    MUSHROOM_COW:
+        DisplayName: "蘑菇牛"
+    MULE:
+        DisplayName: "騾"
+    OCELOT:
+        DisplayName: "山貓"
+    PANDA:
+        DisplayName: "熊貓"
+    PARROT:
+        DisplayName: "鸚鵡"
+    PHANTOM:
+        DisplayName: "夜魅"
+    PIG:
+        DisplayName: "豬"
+    PIGLIN:
+        DisplayName: "豬布林"
+    PIGLIN_BRUTE:
+        DisplayName: "豬布林蠻兵"
+    PILLAGER:
+        DisplayName: "掠奪者"
+    POLAR_BEAR:
+        DisplayName: "北極熊"
+    PUFFERFISH:
+        DisplayName: "河豚"
+    RABBIT:
+        DisplayName: "兔子"
+    RAVAGER:
+        DisplayName: "劫毀獸"
+    SALMON:
+        DisplayName: "鮭魚"
+    SHEEP:
+        DisplayName: "羊"
+    SHULKER:
+        DisplayName: "界伏蚌"
+    SILVERFISH:
+        DisplayName: "蠹魚"
+    SKELETON:
+        DisplayName: "骷髏弓箭手"
+    SKELETON_HORSE:
+        DisplayName: "骷髏馬"
+    SLIME:
+        DisplayName: "史萊姆"
+    SNIFFER:
+        DisplayName: "嗅探獸"
+    SNOWMAN:
+        DisplayName: "雪人"
+    SPIDER:
+        DisplayName: "蜘蛛"
+    SQUID:
+        DisplayName: "魷魚"
+    STRAY:
+        DisplayName: "流髑"
+    STRIDER:
+        DisplayName: "熾足獸"
+    TADPOLE:
+        DisplayName: "蝌蚪"
+    TRADER_LLAMA:
+        DisplayName: "商駝"
+    TROPICAL_FISH:
+        DisplayName: "熱帶魚"
+    TURTLE:
+        DisplayName: "海龜"
+    VEX:
+        DisplayName: "惱鬼"
+    VILLAGER:
+        DisplayName: "村民"
+    VINDICATOR:
+        DisplayName: "衛道士"
+    WARDEN:
+        DisplayName: "伏守者"
+    WANDERING_TRADER:
+        DisplayName: "流浪商人"
+    WITCH:
+        DisplayName: "女巫"
+    WITHER:
+        DisplayName: "凋零怪"
+    WITHER_SKELETON:
+        DisplayName: "凋零骷髏"
+    WOLF:
+        DisplayName: "狼"
+    ZOGLIN:
+        DisplayName: "豬屍獸"
+    ZOMBIE:
+        DisplayName: "殭屍"
+    ZOMBIE_HORSE:
+        DisplayName: "殭屍馬"
+    ZOMBIE_VILLAGER:
+        DisplayName: "殭屍村民"
+    ZOMBIFIED_PIGLIN:
+        DisplayName: "殭屍豬布林"
