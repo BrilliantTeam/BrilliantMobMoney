@@ -20,66 +20,95 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import io.papermc.paper.threadedregions.scheduler.AsyncScheduler;
+import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler;
+import io.papermc.paper.threadedregions.scheduler.EntityScheduler;
+
 public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private Economy economy;
     private final Random random = new Random();
     private ConfigManager configManager;
     private MetricsManager metricsManager;
     
-    // 效能監控
     private final AtomicInteger processedCount = new AtomicInteger(0);
     private long lastMetricsTime = System.currentTimeMillis();
     
-    // 配置緩存
     private final Set<UUID> recentlyProcessed = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    private boolean isFolia;
+    
+    private static boolean isFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
 
     @Override
     public void onEnable() {
-        // 初始化配置管理器
+        this.isFolia = isFolia();
         configManager = new ConfigManager(this);
         
-        // 初始化 MetricsManager
         if (configManager.isEnableMetrics()) {
             metricsManager = new MetricsManager(this);
         }
         
-        // 設置 Vault
         if (!setupEconomy()) {
             getLogger().severe("未找到 Vault 插件！正在禁用插件...");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
         
-        // 註冊事件和命令
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("bmm").setExecutor(this);
         getCommand("bmm").setTabCompleter(this);
         
-        // 設置定時任務
         setupScheduledTasks();
         
         getLogger().info("BrilliantMobMoney 插件已啟用！");
     }
+
     
     private void setupScheduledTasks() {
-        // 清理任務
-        getServer().getScheduler().runTaskTimer(this, () -> {
-            if (recentlyProcessed.size() > configManager.getMaxRecentEntries()) {
-                recentlyProcessed.clear();
-                if (configManager.isDebug()) {
-                    getLogger().info("已清理最近處理的實體緩存");
-                }
-            }
+        if (isFolia) {
+            GlobalRegionScheduler globalScheduler = getServer().getGlobalRegionScheduler();
+            AsyncScheduler asyncScheduler = getServer().getAsyncScheduler();
             
-            // 清理舊的效能指標檔案
+            globalScheduler.runAtFixedRate(this, (task) -> {
+                if (recentlyProcessed.size() > configManager.getMaxRecentEntries()) {
+                    recentlyProcessed.clear();
+                    if (configManager.isDebug()) {
+                        getLogger().info("已清理最近處理的實體緩存");
+                    }
+                }
+                
+                if (configManager.isEnableMetrics()) {
+                    metricsManager.cleanupOldMetrics(configManager.getMetricsRetentionDays());
+                }
+            }, 1, configManager.getCleanupInterval());
+            
             if (configManager.isEnableMetrics()) {
-                metricsManager.cleanupOldMetrics(configManager.getMetricsRetentionDays());
+                globalScheduler.runAtFixedRate(this, (task) -> this.logMetrics(), 300, 300);
             }
-        }, configManager.getCleanupInterval() * 20L, configManager.getCleanupInterval() * 20L);
-        
-        // 效能監控任務
-        if (configManager.isEnableMetrics()) {
-            getServer().getScheduler().runTaskTimer(this, this::logMetrics, 6000L, 6000L);
+        } else {
+            getServer().getScheduler().runTaskTimer(this, () -> {
+                if (recentlyProcessed.size() > configManager.getMaxRecentEntries()) {
+                    recentlyProcessed.clear();
+                    if (configManager.isDebug()) {
+                        getLogger().info("已清理最近處理的實體緩存");
+                    }
+                }
+                
+                if (configManager.isEnableMetrics()) {
+                    metricsManager.cleanupOldMetrics(configManager.getMetricsRetentionDays());
+                }
+            }, configManager.getCleanupInterval() * 20L, configManager.getCleanupInterval() * 20L);
+            
+            if (configManager.isEnableMetrics()) {
+                getServer().getScheduler().runTaskTimer(this, this::logMetrics, 6000L, 6000L);
+            }
         }
     }
     
@@ -89,18 +118,28 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
         double timeSpan = (now - lastMetricsTime) / 1000.0;
         double rate = count / timeSpan;
         
-        // 記錄到檔案
         if (configManager.isEnableMetrics()) {
             metricsManager.logMetrics(count, rate, configManager.getMobConfigs().size(), recentlyProcessed.size());
         }
         
-        // 同時也在控制台顯示
         getLogger().info(String.format(
             "效能監控：已處理 %d 個實體 (%.2f個/秒) | 緩存大小：%d | 最近處理列表大小：%d",
             count, rate, configManager.getMobConfigs().size(), recentlyProcessed.size()
         ));
         
         lastMetricsTime = now;
+    }
+
+    private void sendMessage(CommandSender sender, String message) {
+        sender.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+            .legacySection()
+            .deserialize(message));
+    }
+
+    private void sendMessages(CommandSender sender, String[] messages) {
+        for (String message : messages) {
+            sendMessage(sender, message);
+        }
     }
 
     @Override
@@ -119,7 +158,7 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
         switch (args[0].toLowerCase()) {
             case "reload":
                 if (!sender.hasPermission("brilliantmobmoney.reload")) {
-                    sender.sendMessage("§7｜§6系統§7｜§f飯娘：§7您沒有權限執行此指令！");
+                    sendMessage(sender, "§7｜§6系統§7｜§f飯娘：§7您沒有權限執行此指令！");
                     return true;
                 }
                 handleReload(sender);
@@ -127,7 +166,7 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
 
             case "metrics":
                 if (!sender.hasPermission("brilliantmobmoney.metrics")) {
-                    sender.sendMessage("§7｜§6系統§7｜§f飯娘：§7您沒有權限執行此指令！");
+                    sendMessage(sender, "§7｜§6系統§7｜§f飯娘：§7您沒有權限執行此指令！");
                     return true;
                 }
                 handleMetrics(sender, args);
@@ -143,16 +182,16 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
     private void handleReload(CommandSender sender) {
         try {
             configManager.loadConfigs();
-            sender.sendMessage("§7｜§6系統§7｜§f飯娘：§7已重新載入設定檔案完成！");
+            sendMessage(sender, "§7｜§6系統§7｜§f飯娘：§7已重新載入設定檔案完成！");
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "重新載入配置時發生錯誤", e);
-            sender.sendMessage("§7｜§6系統§7｜§f飯娘：§7設定檔重新載入失敗，請查看控制台獲取詳細信息！");
+            sendMessage(sender, "§7｜§6系統§7｜§f飯娘：§7設定檔重新載入失敗，請查看控制台獲取詳細信息！");
         }
     }
 
     private void handleMetrics(CommandSender sender, String[] args) {
         if (!configManager.isEnableMetrics()) {
-            sender.sendMessage("§7｜§6系統§7｜§f飯娘：§7效能監控功能目前已停用！");
+            sendMessage(sender, "§7｜§6系統§7｜§f飯娘：§7效能監控功能目前已停用！");
             return;
         }
 
@@ -163,7 +202,6 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
 
         switch (args[1].toLowerCase()) {
             case "record":
-                // 強制記錄當前效能
                 long now = System.currentTimeMillis();
                 int count = processedCount.getAndSet(0);
                 double timeSpan = (now - lastMetricsTime) / 1000.0;
@@ -172,11 +210,10 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
                 metricsManager.logMetrics(count, rate, configManager.getMobConfigs().size(), recentlyProcessed.size());
                 lastMetricsTime = now;
                 
-                sender.sendMessage("§7｜§6系統§7｜§f飯娘：§7已手動記錄當前效能指標！");
+                sendMessage(sender, "§7｜§6系統§7｜§f飯娘：§7已手動記錄當前效能指標！");
                 break;
 
             case "status":
-                // 顯示當前效能狀態
                 showCurrentMetrics(sender);
                 break;
 
@@ -187,12 +224,11 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
     }
 
     private void showCurrentMetrics(CommandSender sender) {
-        // 獲取當前效能數據
         int count = processedCount.get();
         double timeSpan = (System.currentTimeMillis() - lastMetricsTime) / 1000.0;
         double rate = timeSpan > 0 ? count / timeSpan : 0;
 
-        sender.sendMessage(new String[] {
+        sendMessages(sender, new String[] {
             "§6==========[效能監控]==========",
             String.format("§f處理實體數量：§e%d", count),
             String.format("§f處理速率：§e%.2f 個/秒", rate),
@@ -205,7 +241,7 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
     }
 
     private void showMetricsHelp(CommandSender sender) {
-        sender.sendMessage(new String[] {
+        sendMessages(sender, new String[] {
             "§6==========[效能監控]==========",
             "§e/bmm metrics record §7- §f手動記錄當前效能",
             "§e/bmm metrics status §7- §f查看當前效能狀態",
@@ -214,7 +250,7 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
     }
 
     private void showHelp(CommandSender sender) {
-        sender.sendMessage(new String[] {
+        sendMessages(sender, new String[] {
             "§6==========[ BrilliantMobMoney ]==========",
             "§e/bmm reload §7- §f重新載入配置文件",
             "§e/bmm metrics §7- §f效能監控相關指令",
@@ -277,42 +313,20 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityDeath(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
+        Player killer = entity.getKiller();
+        
+        if (killer == null) return;
+        
+        String entityType = entity.getType().name();
+        ConfigManager.MobConfig mobConfig = configManager.getMobConfigs().get(entityType);
         
         if (!recentlyProcessed.add(entity.getUniqueId())) {
             if (configManager.isDebug()) {
-                getLogger().info("跳過重複的實體：" + entity.getType());
+                getLogger().info("跳過重複的實體：" + entityType);
             }
             return;
         }
         
-        // 開始追蹤處理時間
-        final long startTime = configManager.isEnableMetrics() ? metricsManager.startTracking() : 0;
-        
-        CompletableFuture.runAsync(() -> {
-            try {
-                processEntityDeath(entity);
-            } catch (Exception e) {
-                getLogger().log(Level.SEVERE, "處理實體死亡時發生錯誤", e);
-            } finally {
-                // 結束追蹤處理時間
-                if (configManager.isEnableMetrics()) {
-                    metricsManager.endTracking(startTime);
-                }
-            }
-        }).orTimeout(configManager.getAsyncTimeout(), TimeUnit.MILLISECONDS)
-          .exceptionally(throwable -> {
-              if (configManager.isDebug()) {
-                  getLogger().warning("異步處理超時或失敗，實體類型：" + entity.getType());
-              }
-              return null;
-          });
-    }
-    
-    private void processEntityDeath(LivingEntity entity) {
-        Player killer = entity.getKiller();
-        String entityType = entity.getType().name();
-        
-        ConfigManager.MobConfig mobConfig = configManager.getMobConfigs().get(entityType);
         if (mobConfig == null || !mobConfig.enabled) {
             return;
         }
@@ -321,34 +335,109 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
             return;
         }
         
-        if (random.nextDouble() * 100 > mobConfig.dropChance) {
+        double randomChance = random.nextDouble() * 100.0;
+        if (randomChance > mobConfig.dropChance) {
+            if (configManager.isDebug()) {
+                getLogger().info(String.format(
+                    "未通過機率檢查：實體=%s, 隨機數=%.2f, 設定機率=%.2f",
+                    entityType, randomChance, mobConfig.dropChance));
+            }
             return;
         }
         
+        final long startTime = configManager.isEnableMetrics() ? metricsManager.startTracking() : 0;
         double reward = calculateReward(mobConfig);
         int drops = calculateDrops(mobConfig.numberOfDrops);
         final double totalReward = reward * drops;
         
-        if (killer != null && totalReward > 0) {
-            getServer().getScheduler().runTask(this, () -> {
-                economy.depositPlayer(killer, totalReward);
-                
-                if (configManager.isShowMessageInActionBar()) {
-                    // 使用 ActionBar 發送訊息
-                    String message = configManager.getActionBarMessage()
-                        .replace("%mob%", mobConfig.displayName)
-                        .replace("%amount%", String.format("%.2f", totalReward));
-                    killer.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                        net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message));
-                } else {
-                    // 使用傳統聊天訊息
-                    String message = String.format("§7｜§6系統§7｜§f飯娘：§7您擊殺了 §e%s §7，故獲得了 §a%.2f乙太§f（ꆙ） §7獎勵！", 
-                        mobConfig.displayName, totalReward);
-                    killer.sendMessage(message);
+        if (totalReward <= 0) {
+            if (configManager.isDebug()) {
+                getLogger().info("獎勵金額為零或負數，跳過處理");
+            }
+            return;
+        }
+
+        if (configManager.isDebug()) {
+            getLogger().info(String.format(
+                "準備給予獎勵：玩家=%s, 實體=%s, 獎勵=%f, 通過機率檢查：%.2f <= %.2f", 
+                killer.getName(), entityType, totalReward, randomChance, mobConfig.dropChance));
+        }
+r
+        final Player finalKiller = killer;
+        if (isFolia) {
+            getServer().getGlobalRegionScheduler().execute(this, () -> {
+                try {
+                    boolean success = economy.depositPlayer(finalKiller, totalReward).transactionSuccess();
+                    
+                    if (success) {
+                        final net.kyori.adventure.text.Component component;
+                        if (configManager.isShowMessageInActionBar()) {
+                            String message = configManager.getActionBarMessage()
+                                .replace("%mob%", mobConfig.displayName)
+                                .replace("%amount%", String.format("%.2f", totalReward));
+                            
+                            component = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                                .legacySection()
+                                .deserialize(message);
+                            
+                            finalKiller.sendActionBar(component);
+                        } else {
+                            String message = String.format("§7｜§6系統§7｜§f飯娘：§7您擊殺了 §e%s §7，故獲得了 §a%.2f乙太§f（ꆙ） §7獎勵！", 
+                                mobConfig.displayName, totalReward);
+                            
+                            component = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                                .legacySection()
+                                .deserialize(message);
+                            
+                            finalKiller.sendMessage(component);
+                        }
+
+                        if (configManager.isEnableMetrics()) {
+                            processedCount.incrementAndGet();
+                            metricsManager.endTracking(startTime);
+                        }
+                    } else {
+                        getLogger().warning(String.format("經濟操作失敗：玩家=%s, 金額=%f", 
+                            finalKiller.getName(), totalReward));
+                    }
+                } catch (Exception e) {
+                    getLogger().log(Level.SEVERE, String.format(
+                        "處理經濟操作時發生錯誤：玩家=%s, 金額=%f", finalKiller.getName(), totalReward), e);
+                    e.printStackTrace();
                 }
-                
-                if (configManager.isEnableMetrics()) {
-                    processedCount.incrementAndGet();
+            });
+        } else {
+            getServer().getScheduler().runTask(this, () -> {
+                try {
+                    boolean success = economy.depositPlayer(finalKiller, totalReward).transactionSuccess();
+                    if (success) {
+                        if (configManager.isShowMessageInActionBar()) {
+                            String message = configManager.getActionBarMessage()
+                                .replace("%mob%", mobConfig.displayName)
+                                .replace("%amount%", String.format("%.2f", totalReward));
+                            
+                            finalKiller.sendActionBar(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                                .legacySection()
+                                .deserialize(message));
+                        } else {
+                            String message = String.format("§7｜§6系統§7｜§f飯娘：§7您擊殺了 §e%s §7，故獲得了 §a%.2f乙太§f（ꆙ） §7獎勵！", 
+                                mobConfig.displayName, totalReward);
+                            
+                            finalKiller.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                                .legacySection()
+                                .deserialize(message));
+                        }
+                        
+                        if (configManager.isEnableMetrics()) {
+                            processedCount.incrementAndGet();
+                            metricsManager.endTracking(startTime);
+                        }
+                    } else {
+                        getLogger().warning(String.format("經濟操作失敗：玩家=%s, 金額=%f", 
+                            finalKiller.getName(), totalReward));
+                    }
+                } catch (Exception e) {
+                    getLogger().log(Level.SEVERE, "處理事件時發生錯誤", e);
                 }
             });
         }
