@@ -362,7 +362,7 @@ public class BrilliantMobMoney extends JavaPlugin implements Listener, CommandEx
                 "準備給予獎勵：玩家=%s, 實體=%s, 獎勵=%f, 通過機率檢查：%.2f <= %.2f", 
                 killer.getName(), entityType, totalReward, randomChance, mobConfig.dropChance));
         }
-r
+
         final Player finalKiller = killer;
         if (isFolia) {
             getServer().getGlobalRegionScheduler().execute(this, () -> {
