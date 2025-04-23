@@ -21,9 +21,8 @@ public class MetricsManager {
     private final DateTimeFormatter dateFormatter;
     private final DateTimeFormatter timeFormatter;
 
-    // 效能追蹤
     private final Queue<Long> processingTimes = new LinkedList<>();
-    private final int MAX_SAMPLES = 600; // 保存最近600次處理的時間（約10分鐘的數據）
+    private final int MAX_SAMPLES = 600;
     private final AtomicLong totalProcessingTime = new AtomicLong(0);
     private long lastUpdateTime = System.nanoTime();
     private double lastPluginMspt = 0;
@@ -48,12 +47,10 @@ public class MetricsManager {
         currentMetrics = YamlConfiguration.loadConfiguration(metricsFile);
     }
 
-    // 開始追蹤處理時間
     public long startTracking() {
         return System.nanoTime();
     }
 
-    // 結束追蹤並記錄處理時間
     public void endTracking(long startTime) {
         long processingTime = System.nanoTime() - startTime;
         synchronized (processingTimes) {
@@ -65,13 +62,11 @@ public class MetricsManager {
         }
     }
 
-    // 計算插件的 MSPT 影響
     private double calculatePluginMspt() {
         synchronized (processingTimes) {
             if (processingTimes.isEmpty()) {
                 return lastPluginMspt;
             }
-            // 計算平均處理時間（轉換為毫秒）
             double avgProcessingTime = processingTimes.stream()
                 .mapToDouble(time -> time / 1_000_000.0)
                 .average()
@@ -82,32 +77,26 @@ public class MetricsManager {
         }
     }
 
-    // 計算插件對 TPS 的影響
     private double calculatePluginTpsImpact() {
         double pluginMspt = calculatePluginMspt();
         if (pluginMspt <= 0) {
             return lastPluginTpsImpact;
         }
         
-        // 理想情況下每tick應該是50ms
-        // 計算插件佔用的百分比，並轉換為TPS影響
         double tpsImpact = (pluginMspt / 50.0) * 20.0;
         lastPluginTpsImpact = tpsImpact;
         return tpsImpact;
     }
     
-    // 獲取當前 MSPT 影響
     public double getCurrentMspt() {
         return calculatePluginMspt();
     }
     
-    // 獲取當前 TPS 影響
     public double getCurrentTpsImpact() {
         return calculatePluginTpsImpact();
     }
     
     public void logMetrics(int processedCount, double rate, int cacheSize, int recentListSize) {
-        // 檢查是否需要切換到新的日期檔案
         String today = LocalDate.now().format(dateFormatter);
         if (!today.equals(currentDate)) {
             initializeCurrentDateFile();
@@ -117,14 +106,12 @@ public class MetricsManager {
         double pluginMspt = calculatePluginMspt();
         double tpsImpact = calculatePluginTpsImpact();
         
-        // 記錄插件效能影響
         currentMetrics.set(timeKey + ".插件效能影響", new String[] {
             String.format("MSPT：+%.3f", pluginMspt),
             String.format("TPS：-%.3f", tpsImpact),
             String.format("預估實際TPS：%.2f", 20.0 - tpsImpact)
         });
         
-        // 記錄處理統計
         currentMetrics.set(timeKey + ".處理統計", new String[] {
             String.format("處理實體數量：%d", processedCount),
             String.format("處理速率：%.2f 個/秒", rate),

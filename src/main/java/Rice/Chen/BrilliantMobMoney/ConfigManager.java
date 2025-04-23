@@ -24,7 +24,6 @@ public class ConfigManager {
     private File configFile;
     private File entityConfigFile;
     
-    // 插件設置
     private int cleanupInterval;
     private int maxRecentEntries;
     private boolean enableMetrics;
@@ -36,38 +35,30 @@ public class ConfigManager {
 
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        // 初始化配置文件
         saveDefaultConfigs();
         loadConfigs();
     }
 
     private void saveDefaultConfigs() {
-        // 保存默認的主配置文件
         if (!new File(plugin.getDataFolder(), "config.yml").exists()) {
             plugin.saveResource("config.yml", false);
         }
-        // 保存默認的實體配置文件
         if (!new File(plugin.getDataFolder(), "entity.yml").exists()) {
             plugin.saveResource("entity.yml", false);
         }
     }
 
     public void loadConfigs() {
-        // 載入主配置
         configFile = new File(plugin.getDataFolder(), "config.yml");
         config = YamlConfiguration.loadConfiguration(configFile);
         
-        // 載入實體配置
         entityConfigFile = new File(plugin.getDataFolder(), "entity.yml");
         entityConfig = YamlConfiguration.loadConfiguration(entityConfigFile);
 
-        // 載入實體名稱
         loadEntityNames();
         
-        // 載入插件設置
         loadSettings();
         
-        // 載入生物配置
         loadMobConfigs();
     }
 
@@ -102,18 +93,15 @@ public class ConfigManager {
         ConfigurationSection mobsSection = config.getConfigurationSection("Mobs");
         
         if (mobsSection != null) {
-            // 遍歷每個分類
             for (String category : mobsSection.getKeys(false)) {
                 ConfigurationSection categorySection = mobsSection.getConfigurationSection(category);
                 if (categorySection != null) {
-                    // 從分類中提取默認值
                     double defaultMin = categorySection.getDouble("Min", 0);
                     double defaultMax = categorySection.getDouble("Max", 0);
                     double defaultDropChance = categorySection.getDouble("DropChance", 0);
                     String defaultNumberOfDrops = categorySection.getString("NumberOfDrops", "1");
                     boolean defaultOnlyOnKill = categorySection.getBoolean("OnlyOnKill", true);
                     
-                    // 遍歷分類下的每個實體（跳過默認值配置）
                     for (String entityType : categorySection.getKeys(false)) {
                         if (entityType.equals("Min") || entityType.equals("Max") ||
                             entityType.equals("DropChance") || entityType.equals("NumberOfDrops") ||
@@ -123,7 +111,6 @@ public class ConfigManager {
                         
                         ConfigurationSection mobSection = categorySection.getConfigurationSection(entityType);
                         if (mobSection != null) {
-                            // 創建臨時默認值配置
                             YamlConfiguration defaults = new YamlConfiguration();
                             defaults.set("Min", defaultMin);
                             defaults.set("Max", defaultMax);
@@ -161,7 +148,6 @@ public class ConfigManager {
         }
     }
 
-    // Getters for settings
     public int getCleanupInterval() { return cleanupInterval; }
     public int getMaxRecentEntries() { return maxRecentEntries; }
     public boolean isEnableMetrics() { return enableMetrics; }
